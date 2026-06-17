@@ -174,8 +174,8 @@ def build_org_presentation(excel_path, output_pptx_path):
     def add_straight_line(slide, x1, y1, x2, y2):
         left = int(min(x1, x2))
         top = int(min(y1, y2))
-        width = int(max(Inches(0.01), abs(x2 - x1)))
-        height = int(max(Inches(0.01), abs(y2 - y1)))
+        width = int(abs(x2 - x1))
+        height = int(abs(y2 - y1))
         
         connector = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, left, top, width, height)
         connector.line.color.rgb = RGBColor(127, 127, 127)
