@@ -236,64 +236,71 @@ def build_org_presentation(excel_path, output_pptx_path):
         p_sub.alignment = 1
 
     # ----------------------------------------------------
-    # SLIDE 2: Primary HOD Overview Grid (Only for Gagan's Span)
+    # SLIDE(S) 2+: Primary HOD Overview Grid (Only for Gagan's Span)
     # ----------------------------------------------------
     if not is_control_functions:
-        slide_o = prs.slides.add_slide(blank_layout)
-        
-        # Slide Title
-        title_box = slide_o.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(3.2), Inches(0.35))
-        title_box.fill.solid()
-        title_box.fill.fore_color.rgb = color_vss
-        title_box.line.fill.background()
-        p_t = title_box.text_frame.paragraphs[0]
-        p_t.text = f"{root_manager}’s HODs Overview"
-        p_t.font.name = 'Calibri'
-        p_t.font.size = Pt(13)
-        p_t.font.bold = True
-        p_t.font.color.rgb = RGBColor(255, 255, 255)
-        
-        # Upper Hierarchy Cards
-        vss_card = add_employee_box(slide_o, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.1), Inches(0.15), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
-        coo_card = add_employee_box(slide_o, senior_chain[1]['name'], senior_chain[1]['title'], Inches(4.1), Inches(0.60), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
-        root_card = add_employee_box(slide_o, root_manager, f"Root | HC - {manager_team_sizes[root_manager]}", Inches(4.1), Inches(1.05), Inches(1.8), Inches(0.42), color_root, is_bold=True)
-        add_perfect_fork(slide_o, vss_card, [coo_card])
-        add_perfect_fork(slide_o, coo_card, [root_card])
-        
         hod_list = sorted(list(hods.iterrows()), key=lambda x: get_recursive_hc(x[1][name_col]), reverse=True)
-        num_hods = len(hod_list)
+        chunk_size = 6
+        chunks_o = [hod_list[i:i + chunk_size] for i in range(0, len(hod_list), chunk_size)]
         
-        row0_count = (num_hods + 1) // 2
-        row1_count = num_hods - row0_count
-        row0_span = Inches(9.6)
-        col_width, col_height = Inches(1.3), Inches(0.55)
-        
-        # Row 0
-        gap0 = row0_span / row0_count if row0_count > 0 else Inches(1)
-        for j in range(row0_count):
-            _, h_row = hod_list[j]
-            hname, htitle, hsub = h_row[name_col], h_row[designation_col], h_row[sub_dept_col]
-            hhc = get_recursive_hc(hname)
-            col_center = Inches(0.2) + (j + 0.5) * gap0
-            hx = col_center - col_width / 2
-            add_employee_box(slide_o, hname, f"{htitle}\n{hsub}\nHC - {hhc}", hx, Inches(1.8), col_width, col_height, color_hod, is_bold=True)
+        for chunk_idx, chunk in enumerate(chunks_o):
+            slide_o = prs.slides.add_slide(blank_layout)
             
-        # Row 1
-        if row1_count > 0:
-            gap1 = row0_span / row1_count
-            for j in range(row1_count):
-                _, h_row = hod_list[row0_count + j]
+            # Slide Title
+            header_suffix = " (Contd.)" if chunk_idx > 0 else ""
+            title_box = slide_o.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(3.2), Inches(0.35))
+            title_box.fill.solid()
+            title_box.fill.fore_color.rgb = color_vss
+            title_box.line.fill.background()
+            p_t = title_box.text_frame.paragraphs[0]
+            p_t.text = f"{root_manager}’s HODs Overview" + header_suffix
+            p_t.font.name = 'Calibri'
+            p_t.font.size = Pt(13)
+            p_t.font.bold = True
+            p_t.font.color.rgb = RGBColor(255, 255, 255)
+            
+            # Upper Hierarchy Cards
+            vss_card = add_employee_box(slide_o, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.1), Inches(0.15), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
+            coo_card = add_employee_box(slide_o, senior_chain[1]['name'], senior_chain[1]['title'], Inches(4.1), Inches(0.60), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
+            root_card = add_employee_box(slide_o, root_manager, f"Root | HC - {manager_team_sizes[root_manager]}", Inches(4.1), Inches(1.05), Inches(1.8), Inches(0.42), color_root, is_bold=True)
+            add_perfect_fork(slide_o, vss_card, [coo_card])
+            add_perfect_fork(slide_o, coo_card, [root_card])
+            
+            # Lay out the HODs in this chunk horizontally
+            row_items = len(chunk)
+            col_width_o = Inches(1.4)
+            col_height_o = Inches(0.50)
+            y_pos_o = Inches(1.8)
+            row_span_o = Inches(9.6)
+            gap_o = row_span_o / row_items
+            
+            hod_cards = []
+            for j in range(row_items):
+                _, h_row = chunk[j]
                 hname, htitle, hsub = h_row[name_col], h_row[designation_col], h_row[sub_dept_col]
                 hhc = get_recursive_hc(hname)
-                col_center = Inches(0.2) + (j + 0.5) * gap1
-                hx = col_center - col_width / 2
-                add_employee_box(slide_o, hname, f"{htitle}\n{hsub}\nHC - {hhc}", hx, Inches(3.3), col_width, col_height, color_hod, is_bold=True)
+                col_center = Inches(0.2) + (j + 0.5) * gap_o
+                hx = col_center - col_width_o / 2
                 
-        hc_box_o = slide_o.shapes.add_textbox(Inches(7.8), Inches(5.1), Inches(2.0), Inches(0.4))
-        hc_box_o.text_frame.paragraphs[0].text = f"Total HC: {manager_team_sizes[root_manager]}\nDR- Direct Reportee"
-        hc_box_o.text_frame.paragraphs[0].font.name = 'Arial'
-        hc_box_o.text_frame.paragraphs[0].font.size = Pt(8)
-        hc_box_o.text_frame.paragraphs[0].font.bold = True
+                # Check if they are managers (i.e. have reports)
+                if hhc > 0:
+                    card_txt = f"{htitle}\n{hsub}\nHC - {hhc}"
+                    card = add_employee_box(slide_o, hname, card_txt, hx, y_pos_o, col_width_o, col_height_o, color_hod, is_bold=True)
+                else:
+                    card_txt = f"{htitle}\n{hsub}"
+                    card = add_employee_box(slide_o, hname, card_txt, hx, y_pos_o, col_width_o, col_height_o, color_report)
+                    
+                hod_cards.append(card)
+                
+            # Connect the parent root_manager to the HOD cards using our perfect zero-slant fork structure
+            add_perfect_fork(slide_o, root_card, hod_cards)
+            
+            # Total headcount tally
+            hc_box_o = slide_o.shapes.add_textbox(Inches(7.8), Inches(5.1), Inches(2.0), Inches(0.4))
+            hc_box_o.text_frame.paragraphs[0].text = f"Total HC: {manager_team_sizes[root_manager]}\nDR- Direct Reportee"
+            hc_box_o.text_frame.paragraphs[0].font.name = 'Arial'
+            hc_box_o.text_frame.paragraphs[0].font.size = Pt(8)
+            hc_box_o.text_frame.paragraphs[0].font.bold = True
 
     # ----------------------------------------------------
     # SLIDES 3+: Dedicated HOD team slide (goes up to Level 2 only)
