@@ -29,6 +29,7 @@ def build_org_presentation(excel_path, output_pptx_path):
         print("Error: Could not find any worksheets with employee databases!")
         return False
         
+    # Concatenate all matching tables to construct a complete, unified database
     df = pd.concat(dfs, ignore_index=True, sort=False)
     print(f"Unified database shape: {df.shape}")
     
@@ -170,54 +171,30 @@ def build_org_presentation(excel_path, output_pptx_path):
             p2.alignment = 1 # Center
         return shape
 
-    # Helper to draw a perfectly straight vertical or horizontal line (Bold, zero turns, zero slants)
-    def add_straight_line(slide, x1, y1, x2, y2):
+    # Helper to connect shapes with perfect bold orthogonal elbow connectors (90-degree turns, no slants)
+    def add_elbow_connector(slide, shape_from, shape_to):
+        # Calculate centers
+        x1 = shape_from.left + shape_from.width / 2
+        y1 = shape_from.top + shape_from.height
+        x2 = shape_to.left + shape_to.width / 2
+        y2 = shape_to.top
+        
         left = int(min(x1, x2))
         top = int(min(y1, y2))
-        width = int(abs(x2 - x1))
-        height = int(abs(y2 - y1))
+        width = int(max(Inches(0.01), abs(x2 - x1)))
+        height = int(max(Inches(0.01), abs(y2 - y1)))
         
-        connector = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, left, top, width, height)
-        # Force width and height to override python-pptx defaults (bypasses 2-inch override bug)
+        connector = slide.shapes.add_connector(MSO_CONNECTOR.ELBOW, left, top, width, height)
+        connector.begin_connect(shape_from, 2)
+        connector.end_connect(shape_to, 0)
+        
+        # Override default python-pptx 2-inch sizes to lock dimensions and prevent rendering slants
         connector.width = width
         connector.height = height
         
         connector.line.color.rgb = RGBColor(127, 127, 127)
         connector.line.width = Pt(1.5) # BOLD lines!
         return connector
-
-    # Helper to draw a perfect top-down fork (Stem -> Bar -> Drops) with absolute zero slants and clean 90-degree drops
-    def add_perfect_fork(slide, parent_shape, child_shapes):
-        if not child_shapes:
-            return
-            
-        parent_x = parent_shape.left + parent_shape.width / 2
-        parent_bottom = parent_shape.top + parent_shape.height
-        child_top = child_shapes[0].top
-        
-        # Draw a single direct vertical line if only 1 child
-        if len(child_shapes) == 1:
-            child_x = child_shapes[0].left + child_shapes[0].width / 2
-            # Force identical x-centers to guarantee absolutely vertical alignment and zero slants
-            add_straight_line(slide, parent_x, parent_bottom, parent_x, child_top)
-            return
-            
-        # Draw perfect 3-segment fork structure: Vertical Stem -> Horizontal Bar -> Vertical Drops
-        y_bar = parent_bottom + (child_top - parent_bottom) / 2
-        
-        # 1. Stem
-        add_straight_line(slide, parent_x, parent_bottom, parent_x, y_bar)
-        
-        # 2. Horizontal Bar
-        x_coords = [s.left + s.width / 2 for s in child_shapes]
-        x_min = min(x_coords)
-        x_max = max(x_coords)
-        add_straight_line(slide, x_min, y_bar, x_max, y_bar)
-        
-        # 3. Drops
-        for s in child_shapes:
-            cx = s.left + s.width / 2
-            add_straight_line(slide, cx, y_bar, cx, child_top)
 
     # ----------------------------------------------------
     # SLIDE 1: Cover Slide
@@ -265,8 +242,8 @@ def build_org_presentation(excel_path, output_pptx_path):
         vss_card = add_employee_box(slide_o, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.1), Inches(0.15), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
         coo_card = add_employee_box(slide_o, senior_chain[1]['name'], senior_chain[1]['title'], Inches(4.1), Inches(0.60), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
         root_card = add_employee_box(slide_o, root_manager, f"Root | HC - {manager_team_sizes[root_manager]}", Inches(4.1), Inches(1.05), Inches(1.8), Inches(0.42), color_root, is_bold=True)
-        add_perfect_fork(slide_o, vss_card, [coo_card])
-        add_perfect_fork(slide_o, coo_card, [root_card])
+        add_elbow_connector(slide_o, vss_card, coo_card)
+        add_elbow_connector(slide_o, coo_card, root_card)
         
         hod_list = sorted(list(hods.iterrows()), key=lambda x: get_recursive_hc(x[1][name_col]), reverse=True)
         num_hods = len(hod_list)
@@ -313,69 +290,59 @@ def build_org_presentation(excel_path, output_pptx_path):
         if team_size == 0:
             continue
             
-        slide_h = prs.slides.add_slide(blank_layout)
-        
-        # Format Header Slide Title
-        formatted_header = header_map.get(hsub.lower().strip(), f"PPSL – {hsub}" if is_control_functions else f"PG Tech – {hsub}")
-        
-        title_box_h = slide_h.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(3.2), Inches(0.35))
-        title_box_h.fill.solid()
-        title_box_h.fill.fore_color.rgb = color_vss
-        title_box_h.line.fill.background()
-        p_th = title_box_h.text_frame.paragraphs[0]
-        p_th.text = formatted_header
-        p_th.font.name = 'Calibri'
-        p_th.font.size = Pt(13)
-        p_th.font.bold = True
-        p_th.font.color.rgb = RGBColor(255, 255, 255)
-        
-        # Senior chain placement
-        if is_control_functions:
-            # ONLY VSS on top for Control Functions
-            v_card = add_employee_box(slide_h, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.15), Inches(0.20), Inches(1.7), Inches(0.40), color_vss, is_bold=True)
-            h_card = add_employee_box(slide_h, hname, f"{htitle}\nDR-{get_recursive_hc(hname)}", Inches(4.15), Inches(0.85), Inches(1.7), Inches(0.45), color_hod, is_bold=True)
-            add_perfect_fork(slide_h, v_card, [h_card])
-        else:
-            v_card = add_employee_box(slide_h, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.1), Inches(0.15), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
-            c_card = add_employee_box(slide_h, senior_chain[1]['name'], senior_chain[1]['title'], Inches(4.1), Inches(0.60), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
-            h_card = add_employee_box(slide_h, hname, f"{htitle}\nHC - {team_size}", Inches(4.1), Inches(1.05), Inches(1.8), Inches(0.42), color_hod, is_bold=True)
-            add_perfect_fork(slide_h, v_card, [c_card])
-            add_perfect_fork(slide_h, c_card, [h_card])
-            
         directs = df[df[manager_col] == hname]
         num_directs = len(directs)
         
         if num_directs == 0:
             continue
             
-        # Dynamically scale card width based on the number of reports to fit on a single row
-        if num_directs <= 6:
-            col_width_h = Inches(1.4)
-        elif num_directs <= 9:
-            col_width_h = Inches(0.9)
-        elif num_directs <= 12:
-            col_width_h = Inches(0.7)
-        else:
-            col_width_h = Inches(0.5)
-            
-        col_height_h = Inches(0.50)
+        # Split direct reports into chunks of at most 6 reports per slide
+        chunk_size = 6
         directs_list = list(directs.iterrows())
-        items_placed = 0
+        chunks = [directs_list[i:i + chunk_size] for i in range(0, len(directs_list), chunk_size)]
         
-        # Enforce exactly 1 horizontal row to ensure clean vertical drops and zero line crossings
-        r_count = 1
-        for r in range(r_count):
-            row_items = num_directs
+        for chunk_idx, chunk in enumerate(chunks):
+            slide_h = prs.slides.add_slide(blank_layout)
             
-            # Vertical spacing adjustments (give slightly more room if there's no COO card)
-            y_pos = Inches(1.8) if not is_control_functions else Inches(1.7)
+            # Format Header Slide Title
+            header_suffix = " (Contd.)" if chunk_idx > 0 else ""
+            formatted_header = header_map.get(hsub.lower().strip(), f"PPSL – {hsub}" if is_control_functions else f"PG Tech – {hsub}") + header_suffix
+            
+            title_box_h = slide_h.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(3.2), Inches(0.35))
+            title_box_h.fill.solid()
+            title_box_h.fill.fore_color.rgb = color_vss
+            title_box_h.line.fill.background()
+            p_th = title_box_h.text_frame.paragraphs[0]
+            p_th.text = formatted_header
+            p_th.font.name = 'Calibri'
+            p_th.font.size = Pt(13)
+            p_th.font.bold = True
+            p_th.font.color.rgb = RGBColor(255, 255, 255)
+            
+            # Senior chain placement
+            if is_control_functions:
+                # ONLY VSS on top for Control Functions
+                v_card = add_employee_box(slide_h, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.15), Inches(0.20), Inches(1.7), Inches(0.40), color_vss, is_bold=True)
+                h_card = add_employee_box(slide_h, hname, f"{htitle}\nDR-{get_recursive_hc(hname)}", Inches(4.15), Inches(0.85), Inches(1.7), Inches(0.45), color_hod, is_bold=True)
+                add_elbow_connector(slide_h, v_card, h_card)
+            else:
+                v_card = add_employee_box(slide_h, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.1), Inches(0.15), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
+                c_card = add_employee_box(slide_h, senior_chain[1]['name'], senior_chain[1]['title'], Inches(4.1), Inches(0.60), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
+                h_card = add_employee_box(slide_h, hname, f"{htitle}\nHC - {team_size}", Inches(4.1), Inches(1.05), Inches(1.8), Inches(0.42), color_hod, is_bold=True)
+                add_elbow_connector(slide_h, v_card, c_card)
+                add_elbow_connector(slide_h, c_card, h_card)
                 
+            # Lay out the direct reports in this chunk horizontally
+            row_items = len(chunk)
+            col_width_h = Inches(1.4) # Always 1.4" since we have at most 6 items per slide
+            col_height_h = Inches(0.50)
+            
+            y_pos = Inches(1.8) if not is_control_functions else Inches(1.7)
             row_span = Inches(9.6)
             gap = row_span / row_items
             
-            report_cards = []
             for j in range(row_items):
-                _, d_row = directs_list[items_placed]
+                _, d_row = chunk[j]
                 dname, dtitle, dsub = d_row[name_col], d_row[designation_col], d_row[sub_dept_col]
                 dhc = get_recursive_hc(dname)
                 col_center = Inches(0.2) + (j + 0.5) * gap
@@ -389,23 +356,19 @@ def build_org_presentation(excel_path, output_pptx_path):
                     # Individual contributor card
                     card = add_employee_box(slide_h, dname, dtitle, dx, y_pos, col_width_h, col_height_h, color_report)
                     
-                report_cards.append(card)
-                items_placed += 1
+                add_elbow_connector(slide_h, h_card, card)
                 
-            # Connect the HOD to the entire row of children using a perfectly orthogonal bold fork structure
-            add_perfect_fork(slide_h, h_card, report_cards)
-                
-        # Total headcount tally matching reference
-        hc_box_h = slide_h.shapes.add_textbox(Inches(7.8), Inches(5.1), Inches(2.0), Inches(0.4))
-        tf_hc_h = hc_box_h.text_frame
-        p_hc_h = tf_hc_h.paragraphs[0]
-        
-        # Use exact text format (Active + SNP) for Control Functions
-        status_suffix = "(Active + SNP)" if is_control_functions else "(Active)"
-        p_hc_h.text = f"Total HC- {team_size} {status_suffix}\nDR- Direct Reportee" if is_control_functions else f"HC : {team_size} (Active + Intern)\nDR- Direct Reportee"
-        p_hc_h.font.name = 'Arial'
-        p_hc_h.font.size = Pt(8)
-        p_hc_h.font.bold = True
+            # Total headcount tally matching reference
+            hc_box_h = slide_h.shapes.add_textbox(Inches(7.8), Inches(5.1), Inches(2.0), Inches(0.4))
+            tf_hc_h = hc_box_h.text_frame
+            p_hc_h = tf_hc_h.paragraphs[0]
+            
+            # Use exact text format (Active + SNP) for Control Functions
+            status_suffix = "(Active + SNP)" if is_control_functions else "(Active)"
+            p_hc_h.text = f"Total HC- {team_size} {status_suffix}\nDR- Direct Reportee" if is_control_functions else f"HC : {team_size} (Active + Intern)\nDR- Direct Reportee"
+            p_hc_h.font.name = 'Arial'
+            p_hc_h.font.size = Pt(8)
+            p_hc_h.font.bold = True
         
     print(f"Saving final Presentation to: {output_pptx_path}")
     prs.save(output_pptx_path)
