@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.DS_Store
+.vscode/
+.idea/
+*.xlsx
+*.xls
+*.pptx
+1.png
+2.png
+New Folder With Items/
+conductor/
+*.log

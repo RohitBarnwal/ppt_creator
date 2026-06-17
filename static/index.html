@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paytm Organization Chart Creator Utility</title>
+    <style>
+        :root {
+            --primary-navy: #073763;
+            --medium-blue: #0b5394;
+            --light-blue: #3d85c6;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #dddddd;
+            --success-color: #2ca02c;
+            --error-color: #d62728;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #121212;
+                --card-bg: #1e1e1e;
+                --text-color: #e0e0e0;
+                --border-color: #333333;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 550px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            padding: 30px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--primary-navy);
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            h1 {
+                color: var(--light-blue);
+            }
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 25px;
+            line-height: 1.4;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .subtitle {
+                color: #aaa;
+            }
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--light-blue);
+            border-radius: 8px;
+            padding: 30px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            background: rgba(61, 133, 198, 0.03);
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            background: rgba(61, 133, 198, 0.08);
+            border-color: var(--medium-blue);
+        }
+
+        .drop-zone-icon {
+            font-size: 40px;
+            color: var(--light-blue);
+            margin-bottom: 10px;
+        }
+
+        .drop-zone-text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .drop-zone-subtext {
+            font-size: 11px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .file-info {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(61, 133, 198, 0.05);
+            border: 1px solid var(--light-blue);
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+
+        .file-name {
+            font-weight: 600;
+            word-break: break-all;
+            margin-right: 10px;
+        }
+
+        .clear-file {
+            cursor: pointer;
+            color: var(--error-color);
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .btn {
+            background-color: var(--primary-navy);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--medium-blue);
+        }
+
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .btn {
+                background-color: var(--medium-blue);
+            }
+            .btn:hover {
+                background-color: var(--light-blue);
+            }
+        }
+
+        .status-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .status-text {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: var(--light-blue);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-bar-fill.loading {
+            width: 100%;
+            animation: pulse 1.5s infinite ease-in-out;
+            transform-origin: left-right;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: none;
+            line-height: 1.4;
+        }
+
+        .message.success {
+            background-color: rgba(44, 160, 44, 0.1);
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+            display: block;
+        }
+
+        .message.error {
+            background-color: rgba(214, 39, 40, 0.1);
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Org Chart Creator Utility</h1>
+        <p class="subtitle">Generate connected multi-level PowerPoint org charts dynamically from an Excel file.</p>
+
+        <form id="upload-form">
+            <div class="drop-zone" id="drop-zone">
+                <div class="drop-zone-icon">📁</div>
+                <div class="drop-zone-text">Drag & Drop Excel File Here</div>
+                <div class="drop-zone-subtext">or click to browse your computer (.xlsx, .xls)</div>
+                <input type="file" id="file-input" accept=".xlsx,.xls">
+            </div>
+
+            <div class="file-info" id="file-info">
+                <span class="file-name" id="selected-file-name">filename.xlsx</span>
+                <span class="clear-file" id="clear-file" title="Remove file">&times;</span>
+            </div>
+
+            <button type="submit" class="btn" id="generate-btn" disabled>Generate Organization Chart</button>
+        </form>
+
+        <div class="status-container" id="status-container">
+            <div class="status-text" id="status-text">Status: Ready</div>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progress-bar-fill"></div>
+            </div>
+        </div>
+
+        <div class="message" id="message-box"></div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const selectedFileName = document.getElementById('selected-file-name');
+        const clearFileBtn = document.getElementById('clear-file');
+        const generateBtn = document.getElementById('generate-btn');
+        const uploadForm = document.getElementById('upload-form');
+        const statusContainer = document.getElementById('status-container');
+        const statusText = document.getElementById('status-text');
+        const progressBarFill = document.getElementById('progress-bar-fill');
+        const messageBox = document.getElementById('message-box');
+
+        let selectedFile = null;
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop zone when item is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        // Handle dropped files
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        }
+
+        // Handle file browse select
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext !== 'xlsx' && ext !== 'xls') {
+                showError("Unsupported file type. Please select an Excel file (.xlsx or .xls)");
+                clearFile();
+                return;
+            }
+
+            selectedFile = file;
+            selectedFileName.textContent = file.name;
+            dropZone.style.display = 'none';
+            fileInfo.style.display = 'flex';
+            generateBtn.disabled = false;
+            hideMessage();
+        }
+
+        clearFileBtn.addEventListener('click', clearFile);
+
+        function clearFile() {
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.style.display = 'none';
+            dropZone.style.display = 'block';
+            generateBtn.disabled = true;
+            hideStatus();
+        }
+
+        function showStatus(text, progress, isPulse = false) {
+            statusContainer.style.display = 'block';
+            statusText.textContent = `Status: ${text}`;
+            if (isPulse) {
+                progressBarFill.className = 'progress-bar-fill loading';
+            } else {
+                progressBarFill.className = 'progress-bar-fill';
+                progressBarFill.style.width = `${progress}%`;
+            }
+        }
+
+        function hideStatus() {
+            statusContainer.style.display = 'none';
+            progressBarFill.style.width = '0%';
+            progressBarFill.className = 'progress-bar-fill';
+        }
+
+        function showSuccess(text) {
+            messageBox.textContent = text;
+            messageBox.className = 'message success';
+        }
+
+        function showError(text) {
+            messageBox.textContent = text;
+            messageBox.className = 'message error';
+        }
+
+        function hideMessage() {
+            messageBox.style.display = 'none';
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!selectedFile) return;
+
+            // Prepare UI
+            generateBtn.disabled = true;
+            clearFileBtn.style.visibility = 'hidden';
+            hideMessage();
+            showStatus("Uploading and processing dataset...", 30, true);
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.detail || 'Failed to generate presentation.');
+                }
+
+                showStatus("Generation Completed! Downloading file...", 100);
+
+                // Get file blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                
+                // Get filename from header or fallback
+                let filename = "Automated_Org_Structure.pptx";
+                const contentDisposition = response.headers.get('Content-Disposition');
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                    if (match) filename = match[1];
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+                showSuccess(`Org Chart PPTX has been generated successfully and downloaded!`);
+            } catch (error) {
+                console.error(error);
+                showError(error.message || "An unexpected error occurred during generation.");
+                showStatus("Generation Failed", 0);
+            } finally {
+                generateBtn.disabled = false;
+                clearFileBtn.style.visibility = 'visible';
+            }
+        });
+    </script>
+</body>
+</html>

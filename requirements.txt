@@ -3,3 +3,10 @@ openpyxl>=3.1.0
 python-pptx>=1.0.0
 customtkinter>=5.2.0
 darkdetect>=0.8.0
+fastapi>=0.100.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6
+pytest>=7.0.0
+httpx>=0.24.0
+
+
