@@ -173,16 +173,7 @@ def build_org_presentation(excel_path, output_pptx_path):
 
     # Helper to draw a perfectly straight vertical or horizontal line (Bold, zero turns, zero slants)
     def add_straight_line(slide, x1, y1, x2, y2):
-        left = int(min(x1, x2))
-        top = int(min(y1, y2))
-        width = int(abs(x2 - x1))
-        height = int(abs(y2 - y1))
-        
-        connector = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, left, top, width, height)
-        # Force width and height to override python-pptx defaults (bypasses 2-inch override bug)
-        connector.width = width
-        connector.height = height
-        
+        connector = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, int(x1), int(y1), int(x2), int(y2))
         connector.line.color.rgb = RGBColor(127, 127, 127)
         connector.line.width = Pt(1.5) # BOLD lines!
         return connector
@@ -377,6 +368,49 @@ def build_org_presentation(excel_path, output_pptx_path):
                     # Manager rollup: Name, Title, and DR-count
                     card_txt = f"{dtitle}\nDR- {dhc}"
                     card = add_employee_box(slide_h, dname, card_txt, dx, y_pos, col_width_h, col_height_h, color_manager, is_bold=True)
+                    
+                    # Generate vertical sub-stack cards for sub-departments
+                    sub_reports = df[df[manager_col] == dname]
+                    if not sub_reports.empty:
+                        # Group by sub-department
+                        group_counts = sub_reports[sub_dept_col].value_counts()
+                        groups = [f"{dept} - {count}" for dept, count in group_counts.items()]
+                        
+                        # Group into pairs (at most 2 groups per sub-card)
+                        card_texts = []
+                        for k in range(0, len(groups), 2):
+                            if k + 1 < len(groups):
+                                card_texts.append(f"{groups[k]}\n{groups[k+1]}")
+                            else:
+                                card_texts.append(groups[k])
+                                
+                        if card_texts:
+                            # 1. Stem of the left-aligned fork
+                            x_stem = dx + Inches(0.12)
+                            y_stem_start = y_pos + col_height_h
+                            y_stem_end = (y_pos + col_height_h + Inches(0.22)) + (len(card_texts) - 1) * Inches(0.72) + col_height_h / 2
+                            add_straight_line(slide_h, x_stem, y_stem_start, x_stem, y_stem_end)
+                            
+                            for i_card, card_text in enumerate(card_texts):
+                                sub_y = (y_pos + col_height_h + Inches(0.22)) + i_card * Inches(0.72)
+                                sub_x = dx + Inches(0.25)
+                                col_width_sub = Inches(1.15)
+                                
+                                # Add sub-card shape (text centered vertically by leaving title empty)
+                                add_employee_box(
+                                    slide_h, 
+                                    card_text, 
+                                    "", 
+                                    sub_x, 
+                                    sub_y, 
+                                    col_width_sub, 
+                                    col_height_h, 
+                                    color_manager
+                                )
+                                
+                                # 2. Horizontal branch connecting stem to sub-card
+                                y_branch = sub_y + col_height_h / 2
+                                add_straight_line(slide_h, x_stem, y_branch, sub_x, y_branch)
                 else:
                     # Individual contributor card
                     card = add_employee_box(slide_h, dname, dtitle, dx, y_pos, col_width_h, col_height_h, color_report)
