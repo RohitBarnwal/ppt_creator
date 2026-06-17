@@ -1,12 +1,46 @@
 # 📊 Paytm Organization Chart Generator Workflow
 
-Below is the complete architectural diagram and workflow documentation for the reverse-engineering, algorithm development, and UI implementation of the Organization Chart Generator.
+## 🌟 Executive & CXO Overview (Non-Technical)
 
-You can preview the interactive diagram directly in VS Code by installing any Mermaid previewer extension (such as *Markdown Preview Mermaid Support*).
+### 1. The Core Business Value
+Manually designing and updating organizational charts for hundreds of employees is incredibly time-consuming, prone to errors, and highly inconsistent. 
+
+This utility **automates 100% of the design and structural formatting**. By turning any standard employee spreadsheet into a presentation-ready, connected PowerPoint org chart in **less than 3 seconds**, it ensures perfect visual consistency and massive time savings.
 
 ---
 
-## 1. System Architecture & Workflow Diagram
+### 2. How It Works (The 3-Step Zero-Touch Flow)
+```
+  [1. Input Excel] ────────► [2. One-Click Gen Engine] ────────► [3. Output PPTX]
+  Raw Employee List           Dynamic Hierarchy Tracing           Connected Slides
+  (e.g., 350+ entries)        & Executive Color Palette           (Ready for boardrooms)
+```
+
+---
+
+### 3. Smart Business Rules (Why the Slides Look So Clean)
+Instead of creating giant, unreadable "spiderweb" diagrams, the generation engine enforces four key presentation rules:
+1. **The 2-Level Rule (Clutter Control):** Each slide focuses strictly on two layers of depth (the leader at the top, and their direct reporting lines).
+2. **Dynamic Rollups (The 'DR-' count):** If a direct reportee is a manager, the chart automatically counts their entire team recursively and displays it as a roll-up number (e.g., `DR- 13` or `DR- 5`). It summarizes their department instead of crowding the slide with individual boxes.
+3. **Horizontal Grids & Stacks:** If a leader has up to 6 reports, they spread side-by-side. If they have more, the engine automatically wraps them into a balanced multi-row horizontal grid (up to 3 rows) so cards never overlap or overflow.
+4. **Corporate Color Grading:** Applies a polished, structured color hierarchy from top-to-bottom:
+   - **MD & CEO / Execs:** Dark Navy Blue (Maximum Authority)
+   - **SVP / HODs:** Medium Dark Blue
+   - **Managers:** Light Blue (with rollup summaries)
+   - **Individual Contributors:** Very Light Blue
+
+---
+
+### 4. The Interactive Desktop Application UI
+We wrapped this complex math into a clean, modern, single-window desktop application. To generate a slide deck, you only need to:
+1. Click **"Browse Excel File"** to select your spreadsheet.
+2. Customize the output name (optional).
+3. Click **"Generate Organization Chart"**.
+4. Receive a success pop-up notification with the ready-to-open PowerPoint file!
+
+---
+
+## 💻 2. System Architecture & Technical Workflow (Mermaid)
 
 ```mermaid
 graph TD
@@ -89,7 +123,7 @@ graph TD
 
 ---
 
-## 2. Detailed Technical Narrative
+## 🛠️ 3. Detailed Technical Narrative (For Engineers)
 
 ### Phase 1: Input Analysis & Reverse-Engineering
 * **The Goal:** Build an automated system that can translate hierarchically nested organization spreadsheets into beautifully proportioned, highly structured slides (one per HOD), connected with lines and styled with executive colors.
