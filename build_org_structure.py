@@ -170,9 +170,20 @@ def build_org_presentation(excel_path, output_pptx_path):
             p2.alignment = 1 # Center
         return shape
 
-    # Helper to connect shapes
+    # Helper to connect shapes with robust pre-aligned bounding boxes
     def add_elbow_connector(slide, shape_from, shape_to):
-        connector = slide.shapes.add_connector(MSO_CONNECTOR.ELBOW, Inches(0), Inches(0), Inches(1), Inches(1))
+        # Calculate centers
+        x1 = shape_from.left + shape_from.width / 2
+        y1 = shape_from.top + shape_from.height
+        x2 = shape_to.left + shape_to.width / 2
+        y2 = shape_to.top
+        
+        left = int(min(x1, x2))
+        top = int(min(y1, y2))
+        width = int(max(Inches(0.01), abs(x2 - x1)))
+        height = int(max(Inches(0.01), abs(y2 - y1)))
+        
+        connector = slide.shapes.add_connector(MSO_CONNECTOR.ELBOW, left, top, width, height)
         connector.begin_connect(shape_from, 2)
         connector.end_connect(shape_to, 0)
         connector.line.color.rgb = RGBColor(127, 127, 127)
@@ -243,8 +254,7 @@ def build_org_presentation(excel_path, output_pptx_path):
             hhc = get_recursive_hc(hname)
             col_center = Inches(0.2) + (j + 0.5) * gap0
             hx = col_center - col_width / 2
-            card = add_employee_box(slide_o, hname, f"{htitle}\n{hsub}\nHC - {hhc}", hx, Inches(1.8), col_width, col_height, color_hod, is_bold=True)
-            add_elbow_connector(slide_o, root_card, card)
+            add_employee_box(slide_o, hname, f"{htitle}\n{hsub}\nHC - {hhc}", hx, Inches(1.8), col_width, col_height, color_hod, is_bold=True)
             
         # Row 1
         if row1_count > 0:
@@ -255,8 +265,7 @@ def build_org_presentation(excel_path, output_pptx_path):
                 hhc = get_recursive_hc(hname)
                 col_center = Inches(0.2) + (j + 0.5) * gap1
                 hx = col_center - col_width / 2
-                card = add_employee_box(slide_o, hname, f"{htitle}\n{hsub}\nHC - {hhc}", hx, Inches(3.3), col_width, col_height, color_hod, is_bold=True)
-                add_elbow_connector(slide_o, root_card, card)
+                add_employee_box(slide_o, hname, f"{htitle}\n{hsub}\nHC - {hhc}", hx, Inches(3.3), col_width, col_height, color_hod, is_bold=True)
                 
         hc_box_o = slide_o.shapes.add_textbox(Inches(7.8), Inches(5.1), Inches(2.0), Inches(0.4))
         hc_box_o.text_frame.paragraphs[0].text = f"Total HC: {manager_team_sizes[root_manager]}\nDR- Direct Reportee"
@@ -309,25 +318,27 @@ def build_org_presentation(excel_path, output_pptx_path):
         if num_directs == 0:
             continue
             
-        r_count = 1 if num_directs <= 6 else (2 if num_directs <= 12 else 3)
-        col_width_h, col_height_h = Inches(1.4), Inches(0.50)
+        # Dynamically scale card width based on the number of reports to fit on a single row
+        if num_directs <= 6:
+            col_width_h = Inches(1.4)
+        elif num_directs <= 9:
+            col_width_h = Inches(0.9)
+        elif num_directs <= 12:
+            col_width_h = Inches(0.7)
+        else:
+            col_width_h = Inches(0.5)
+            
+        col_height_h = Inches(0.50)
         directs_list = list(directs.iterrows())
         items_placed = 0
         
+        # Enforce exactly 1 horizontal row to ensure clean vertical drops and zero line crossings
+        r_count = 1
         for r in range(r_count):
-            remaining = num_directs - items_placed
-            if r_count == 1:
-                row_items = remaining
-            elif r_count == 2:
-                row_items = (num_directs + 1) // 2 if r == 0 else remaining
-            else:
-                row_items = (num_directs + 2) // 3 if r in [0, 1] else remaining
-                
-            # Vertical spacing adjustments
-            y_pos = Inches(1.8) if r_count == 1 else (Inches(1.8) + r * Inches(1.0))
-            if is_control_functions:
-                # Give slightly more room since there is no COO card
-                y_pos = Inches(1.7) if r_count == 1 else (Inches(1.7) + r * Inches(1.1))
+            row_items = num_directs
+            
+            # Vertical spacing adjustments (give slightly more room if there's no COO card)
+            y_pos = Inches(1.8) if not is_control_functions else Inches(1.7)
                 
             row_span = Inches(9.6)
             gap = row_span / row_items
