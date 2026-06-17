@@ -178,6 +178,10 @@ def build_org_presentation(excel_path, output_pptx_path):
         height = int(abs(y2 - y1))
         
         connector = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, left, top, width, height)
+        # Force width and height to override python-pptx defaults (bypasses 2-inch override bug)
+        connector.width = width
+        connector.height = height
+        
         connector.line.color.rgb = RGBColor(127, 127, 127)
         connector.line.width = Pt(1.5) # BOLD lines!
         return connector
