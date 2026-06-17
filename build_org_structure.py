@@ -170,49 +170,26 @@ def build_org_presentation(excel_path, output_pptx_path):
             p2.alignment = 1 # Center
         return shape
 
-    # Helper to draw a perfectly straight vertical or horizontal line (Bold, zero turns)
-    def add_straight_line(slide, x1, y1, x2, y2):
+    # Helper to connect shapes with perfect bold orthogonal elbow connectors (90-degree turns, no slants)
+    def add_elbow_connector(slide, shape_from, shape_to):
+        # Calculate centers
+        x1 = shape_from.left + shape_from.width / 2
+        y1 = shape_from.top + shape_from.height
+        x2 = shape_to.left + shape_to.width / 2
+        y2 = shape_to.top
+        
         left = int(min(x1, x2))
         top = int(min(y1, y2))
-        width = int(abs(x2 - x1))
-        height = int(abs(y2 - y1))
+        width = int(max(Inches(0.01), abs(x2 - x1)))
+        height = int(max(Inches(0.01), abs(y2 - y1)))
         
-        connector = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, left, top, width, height)
+        connector = slide.shapes.add_connector(MSO_CONNECTOR.ELBOW, left, top, width, height)
+        connector.begin_connect(shape_from, 2)
+        connector.end_connect(shape_to, 0)
+        
         connector.line.color.rgb = RGBColor(127, 127, 127)
         connector.line.width = Pt(1.5) # BOLD lines!
         return connector
-
-    # Helper to draw a perfect top-down fork connecting a parent to multiple children
-    def add_perfect_fork(slide, parent_shape, child_shapes):
-        if not child_shapes:
-            return
-            
-        parent_x = parent_shape.left + parent_shape.width / 2
-        parent_bottom = parent_shape.top + parent_shape.height
-        child_top = child_shapes[0].top
-        
-        # Draw a single direct vertical line if only 1 child
-        if len(child_shapes) == 1:
-            child_x = child_shapes[0].left + child_shapes[0].width / 2
-            add_straight_line(slide, parent_x, parent_bottom, child_x, child_top)
-            return
-            
-        # Draw a perfect three-segment fork structure: Stem -> Horizontal Bar -> Vertical Drops
-        y_bar = parent_bottom + (child_top - parent_bottom) / 2
-        
-        # 1. Stem
-        add_straight_line(slide, parent_x, parent_bottom, parent_x, y_bar)
-        
-        # 2. Horizontal Bar
-        x_coords = [s.left + s.width / 2 for s in child_shapes]
-        x_min = min(x_coords)
-        x_max = max(x_coords)
-        add_straight_line(slide, x_min, y_bar, x_max, y_bar)
-        
-        # 3. Drops
-        for s in child_shapes:
-            cx = s.left + s.width / 2
-            add_straight_line(slide, cx, y_bar, cx, child_top)
 
     # ----------------------------------------------------
     # SLIDE 1: Cover Slide
@@ -260,8 +237,8 @@ def build_org_presentation(excel_path, output_pptx_path):
         vss_card = add_employee_box(slide_o, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.1), Inches(0.15), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
         coo_card = add_employee_box(slide_o, senior_chain[1]['name'], senior_chain[1]['title'], Inches(4.1), Inches(0.60), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
         root_card = add_employee_box(slide_o, root_manager, f"Root | HC - {manager_team_sizes[root_manager]}", Inches(4.1), Inches(1.05), Inches(1.8), Inches(0.42), color_root, is_bold=True)
-        add_perfect_fork(slide_o, vss_card, [coo_card])
-        add_perfect_fork(slide_o, coo_card, [root_card])
+        add_elbow_connector(slide_o, vss_card, coo_card)
+        add_elbow_connector(slide_o, coo_card, root_card)
         
         hod_list = sorted(list(hods.iterrows()), key=lambda x: get_recursive_hc(x[1][name_col]), reverse=True)
         num_hods = len(hod_list)
@@ -329,13 +306,13 @@ def build_org_presentation(excel_path, output_pptx_path):
             # ONLY VSS on top for Control Functions
             v_card = add_employee_box(slide_h, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.15), Inches(0.20), Inches(1.7), Inches(0.40), color_vss, is_bold=True)
             h_card = add_employee_box(slide_h, hname, f"{htitle}\nDR-{get_recursive_hc(hname)}", Inches(4.15), Inches(0.85), Inches(1.7), Inches(0.45), color_hod, is_bold=True)
-            add_perfect_fork(slide_h, v_card, [h_card])
+            add_elbow_connector(slide_h, v_card, h_card)
         else:
             v_card = add_employee_box(slide_h, senior_chain[0]['name'], senior_chain[0]['title'], Inches(4.1), Inches(0.15), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
             c_card = add_employee_box(slide_h, senior_chain[1]['name'], senior_chain[1]['title'], Inches(4.1), Inches(0.60), Inches(1.8), Inches(0.38), color_vss, is_bold=True)
             h_card = add_employee_box(slide_h, hname, f"{htitle}\nHC - {team_size}", Inches(4.1), Inches(1.05), Inches(1.8), Inches(0.42), color_hod, is_bold=True)
-            add_perfect_fork(slide_h, v_card, [c_card])
-            add_perfect_fork(slide_h, c_card, [h_card])
+            add_elbow_connector(slide_h, v_card, c_card)
+            add_elbow_connector(slide_h, c_card, h_card)
             
         directs = df[df[manager_col] == hname]
         num_directs = len(directs)
@@ -368,7 +345,6 @@ def build_org_presentation(excel_path, output_pptx_path):
             row_span = Inches(9.6)
             gap = row_span / row_items
             
-            report_cards = []
             for j in range(row_items):
                 _, d_row = directs_list[items_placed]
                 dname, dtitle, dsub = d_row[name_col], d_row[designation_col], d_row[sub_dept_col]
@@ -384,11 +360,8 @@ def build_org_presentation(excel_path, output_pptx_path):
                     # Individual contributor card
                     card = add_employee_box(slide_h, dname, dtitle, dx, y_pos, col_width_h, col_height_h, color_report)
                     
-                report_cards.append(card)
+                add_elbow_connector(slide_h, h_card, card)
                 items_placed += 1
-                
-            # Draw the clean, bold, zero-turn fork for the entire row of cards!
-            add_perfect_fork(slide_h, h_card, report_cards)
                 
         # Total headcount tally matching reference
         hc_box_h = slide_h.shapes.add_textbox(Inches(7.8), Inches(5.1), Inches(2.0), Inches(0.4))
