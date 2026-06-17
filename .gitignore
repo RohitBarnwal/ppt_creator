@@ -1,0 +1,21 @@
+# Ignore Excel Databases
+*.xlsx
+*.xls
+
+# Ignore Generated PowerPoint Files
+*.pptx
+
+# Ignore Python Caches and temporary scripts
+__pycache__/
+*.pyc
+*.pyo
+inspect_*.py
+search_*.py
+test_*.py
+check_*.py
+list_*.py
+map_*.py
+run_*.py
+count_*.py
+match_names.py
+print_*.py
